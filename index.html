@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Why Can't We Outsmart a Chess Bot?</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" />
+  <!-- Prism.js syntax highlighting (put this in the <head>) -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+  <style>
+    body { font-family: sans-serif; line-height: 1.7; margin: 40px auto; max-width: 850px; padding: 0 20px; }
+    h1, h2 { color: #333366; }
+    #board { width: 400px; margin: 20px auto; }
+    #status { font-weight: bold; text-align: center; margin-top: 10px; }
+    #moves { max-height: 100px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; }
+    button { margin: 5px; padding: 5px 10px; cursor: pointer; border-radius: 4px; }
+    .centered-img { display: block; margin: 20px auto; border: none; box-shadow: none; }
+    pre.code-snippet { background: #f4f4f4; padding: 10px; overflow-x: auto; border-left: 4px solid #888; }
+  </style>
+</head>
+<body>
+
+<h1>Why Can't We Outsmart a Chess Bot?</h1>
+
+<h2>1. Introduction: Human Intuition vs AI Precision</h2>
+<p>Have you ever confidently played your favorite chess opening, only to be dismantled by a bot that seemed to see ten steps ahead? It can be frustrating: you know the rules, understand tactics, even recognize some famous openings. Yet the bot wins — every time. And it feels like it isn't even trying hard.</p>
+<p>So, what gives? Why can’t we beat these silicon beasts? The answer lies in how bots calculate the game tree much faster and more precisely than any human can.</p>
+<p>In this blog, we’ll unravel the math and logic that makes chess AIs so powerful. And instead of theory alone, you’ll see how it works <em>in action</em>, through interactive examples and visual explanations.</p>
+
+<h2>2. The Game Tree: Visualizing Possibilities</h2>
+<p>Every chess position is like a branching tree. The number of possibilities increases dramatically as moves are made.</p>
+<ul>
+  <li>From the starting position, each side has about <strong>20 legal moves</strong>.</li>
+  <li>After just <strong>2 full moves</strong>, that becomes nearly <strong>400 positions</strong>.</li>
+  <li>By move 4, you’re looking at <strong>hundreds of thousands</strong>.</li>
+  <li>After 10 moves? Over <strong>10<sup>12</sup> possible positions</strong>!</li>
+</ul>
+<blockquote>This explosion is known as the <strong>combinatorial complexity</strong> of chess. No human can explore it deeply without assistance.</blockquote>
+<p>If we think of chess as a tree, AI explores its branches. But how far? That depends on how clever the search algorithm is.</p>
+
+<h2>3. Minimax in Action</h2>
+<p>The core of most chess AIs is the <strong>Minimax algorithm</strong>. It's designed to simulate two perfect players: one trying to <em>maximize</em> its advantage, while the other tries to <em>minimize</em> it. This back-and-forth logic enables a bot to make strong predictions even without deep knowledge.</p>
+<p>Here’s a simplified Python version of Minimax that evaluates material :</p>
+
+<pre><code class="language-python">
+def minimax(board, depth, is_maximizing):
+    if depth == 0 or board.is_game_over():
+        return evaluate(board)
+
+    best_score = float('-inf') if is_maximizing else float('inf')
+    for move in board.legal_moves:
+        board.push(move)
+        score = minimax(board, depth - 1, not is_maximizing)
+        board.pop()
+        if is_maximizing:
+            best_score = max(score, best_score)
+        else:
+            best_score = min(score, best_score)
+    return best_score
+</code></pre>
+
+<p>This simple function already gives the bot the ability to plan ahead — and avoid traps. But in practice, we add enhancements like pruning, evaluation weights, repetition handling, and more.</p>
+
+<h2>4. Alpha-Beta Pruning: Not Every Branch Matters</h2>
+<p>Calculating every possible future is extremely expensive. To solve this, bots use <strong>alpha-beta pruning</strong> — a way to discard suboptimal moves early.</p>
+<p>If a move branch already looks worse than one you've seen before, there's no need to continue down that path. This clever cutoff reduces the number of positions the AI has to check, allowing it to look deeper without sacrificing time.</p>
+<p>The diagram below shows how a chess AI evaluates several possible continuations using a tree of moves and associated scores. Good lines are retained, bad ones are pruned.</p>
+<img src="images/Algo.png" alt="Minimax Tree Diagram" class="centered-img" width="80%" />
+
+<div style="margin-top: 1.5em; font-size: 16px; line-height: 1.6;">
+  <p>
+    The tree diagram illustrates how a chess AI evaluates multiple continuations in a given position using <strong>alpha-beta pruning</strong>. 
+    Each node represents a board state after a move, and each branch corresponds to a possible reply.
+  </p>
+  
+  <p>
+    The <strong>white and black circles</strong> indicate <em>which player's turn it is</em> — 
+    white circles for White’s move, and black circles for Black’s move. 
+    This helps visualize the alternating nature of chess turns as the tree expands.
+  </p>
+  
+  <p>
+    The AI evaluates positions at the leaf nodes and assigns them scores:
+    <ul>
+      <li><strong>Negative values</strong> (like <code>-3.8</code>, <code>-3.0</code>) typically represent an advantage for Black.</li>
+      <li><strong>Positive values</strong> or <code>1-0</code> indicate winning outcomes for White, often a checkmate.</li>
+    </ul>
+  </p>
+
+  <p>
+    Importantly, some branches <strong>stop early</strong> — they’re <strong>pruned</strong>. 
+    For example, after evaluating the left subtree (such as the line following <code>Nd7</code>), 
+    the engine realizes that the <code>Nc6</code> line can't outperform what’s already found. 
+    So it skips further exploration down that path.
+  </p>
+
+  <p>
+    This demonstrates the power of <strong>alpha-beta pruning</strong>: 
+    it avoids evaluating clearly suboptimal moves, enabling the AI to search deeper 
+    while saving time and computation.
+  </p>
+</div>
+
+
+<h2>5. Evaluation Function: How AI Judges a Position</h2>
+<p>Minimax needs a way to assess board positions numerically. That’s where the <strong>evaluation function</strong> comes in. It assigns a score to each position, estimating how favorable it is for the current player.</p>
+<p>Typical factors include:</p>
+<ul>
+  <li><strong>Material</strong>: Pawns = 1, Knights/Bishops = 3, Rooks = 5, Queens = 9</li>
+  <li><strong>King Safety</strong>: Is the king exposed or well-protected?</li>
+  <li><strong>Center Control</strong>: Are you dominating key central squares?</li>
+  <li><strong>Mobility</strong>: How many legal moves can your pieces make?</li>
+</ul>
+<blockquote>For example, a position with +3.0 score means the AI thinks White is up roughly the value of a bishop and pawn.</blockquote>
+<p>Even our simple bot uses a version of this, making it capable of intelligent play without brute force.</p>
+
+<h2>6. Let’s Play! Try to Beat the Bot 👇</h2>
+<p>Now that you've seen how bots "think", why not try it out? Below is a demo bot using minimax, evaluation, pruning, and a few tactical ideas like saving endangered pieces or delivering mate.</p>
+<div id="board"></div>
+<div id="status">Your move!</div>
+<div style="text-align: center;">Moves: <span id="moves"></span></div>
+<div style="text-align: center;">
+  <button onclick="undo()">Undo</button>
+  <button onclick="reset()">Reset</button>
+</div>
+
+<h2>7. Can Bots Make Mistakes?</h2>
+<p>Yes! Try playing something like <code>1.e4 e5 2.Qh5 Nc6 3.Bc4 Ra8 4.Qxf7# </code> and you will see — basic bots <strong>can be mated</strong> if they don’t look far enough ahead.</p>
+<p>This happens because they are limited by <em>depth</em>: how many moves they calculate into the future. The deeper the search, the fewer mistakes they make. Elite engines like Stockfish look 30+ moves ahead in real time.</p>
+
+<h2>8. Neural Networks Join the Game</h2>
+<p>Traditional engines use handcrafted rules, but modern ones like AlphaZero or Stockfish NNUE incorporate neural networks. These networks learn evaluations by analyzing millions of games.</p>
+<p>Instead of fixed rules, they learn patterns. This makes them far more dynamic and human-like — even creative in some cases!</p>
+<p>Neural nets help prioritize which branches to explore and improve position evaluation through learned intuition.</p>
+
+<div style="text-align: center; margin: 40px 0;">
+  <img src="images/NN.png" alt="Neural Network Diagram" style="max-width: 100%; height: auto;">
+</div>
+
+<p>
+  The diagram above shows a simplified version of a neural network — input neurons on the left (like board features), hidden neurons in the middle (that mix and transform signals), and an output neuron on the right (which gives a score, like +1.5 or -2.0). In chess terms, the input layer might encode where each piece is, whose turn it is, castling rights, and more. The output tells how good the position is for White.
+</p>
+
+<p>
+  As the bot trains, it adjusts the weights between these layers so it can better predict outcomes. Over time, it starts recognizing things like strong outposts, weak pawns, or dangerous kings — without being told directly. This is how AlphaZero came up with moves that seemed strange at first but turned out to be brilliant. It <em>learned</em> strategy, not just tactics.
+</p>
+
+<p>
+  That’s why neural bots don’t just calculate deeper — they <strong>evaluate smarter</strong>.
+</p>
+
+<h2>9. Conclusion: Math + Logic + Speed = Mastery</h2>
+<p>The reason we struggle against bots isn’t that they are magically smart — it’s because they:</p>
+<ul>
+  <li>Explore more outcomes than a human can calculate</li>
+  <li>Make zero blunders under time pressure</li>
+  <li>Use precise logic, evaluation, and memory</li>
+  <li>Never forget past mistakes or repeat errors</li>
+</ul>
+<p>The combo of combinatorics, evaluation, alpha-beta logic, and neural learning creates something that, while artificial, plays like a genius.</p>
+<p>Now you know its secrets. Good luck outsmarting it!</p>
+
+
+
+
+</body>
+</html>
+
+  <script>
+    const game = new Chess();
+    const board = Chessboard('board', {
+      draggable: true,
+      position: 'start',
+      pieceTheme: 'images/{piece}.png',
+      onDrop: onDrop
+    });
+
+    const pieceVals = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+    const previousMoves = [];
+
+    function updateStatus() {
+      if (game.in_checkmate()) $('#status').text(game.turn() === 'w' ? 'Black wins!' : 'White wins!');
+      else if (game.in_draw()) $('#status').text('Draw!');
+      else if (game.in_check()) $('#status').text('Check!');
+      else $('#status').text(game.turn() === 'w' ? 'Your move!' : 'Bot thinking...');
+      $('#moves').text(game.history().join(' '));
+    }
+
+    function attackersToSquare(g, square, byColor) {
+      return g.moves({ verbose: true }).filter(m => m.to === square && g.get(m.from)?.color === byColor);
+    }
+
+    function onDrop(src, tgt) {
+      const move = game.move({ from: src, to: tgt, promotion: 'q' });
+      if (!move) return 'snapback';
+      board.position(game.fen());
+      updateStatus();
+      setTimeout(botMove, 100);
+    }
+
+    function botMove() {
+      if (game.game_over()) return;
+      const moves = game.moves({ verbose: true });
+      const myColor = game.turn();
+      const oppColor = myColor === 'w' ? 'b' : 'w';
+
+      for (const m of moves) {
+        game.move(m);
+        if (game.in_checkmate()) {
+          game.undo(); game.move(m);
+          board.position(game.fen());
+          previousMoves.push(m.from + '-' + m.to);
+          updateStatus(); return;
+        }
+        game.undo();
+      }
+
+      if (game.in_check()) {
+        for (const m of moves) {
+          game.move(m);
+          if (!game.in_check()) {
+            game.undo(); game.move(m);
+            board.position(game.fen());
+            previousMoves.push(m.from + '-' + m.to);
+            updateStatus(); return;
+          }
+          game.undo();
+        }
+      }
+
+      const safeCaptures = [];
+      for (const m of moves) {
+        if (!m.captured) continue;
+        const fromPiece = game.get(m.from);
+        const toVal = pieceVals[m.captured];
+        const fromVal = pieceVals[fromPiece.type];
+        game.move(m);
+        const attackers = attackersToSquare(game, m.to, oppColor);
+        game.undo();
+        if (attackers.length === 0 || toVal - fromVal >= 0) {
+          safeCaptures.push({ move: m, gain: toVal - fromVal });
+        }
+      }
+
+      if (safeCaptures.length > 0) {
+        safeCaptures.sort((a, b) => b.gain - a.gain);
+        const best = safeCaptures[0].move;
+        game.move(best);
+        previousMoves.push(best.from + '-' + best.to);
+        board.position(game.fen());
+        updateStatus(); return;
+      }
+
+      const escapeMoves = [];
+      const boardMap = game.board();
+      for (let r = 0; r < 8; r++) {
+        for (let f = 0; f < 8; f++) {
+          const sq = boardMap[r][f];
+          if (!sq || sq.color !== myColor) continue;
+          const square = 'abcdefgh'[f] + (8 - r);
+          const isAttacked = attackersToSquare(game, square, oppColor).length > 0;
+          if (isAttacked) {
+            const legal = moves.filter(m => m.from === square);
+            for (const m of legal) {
+              game.move(m);
+              const safe = attackersToSquare(game, m.to, oppColor).length === 0;
+              game.undo();
+              if (safe) escapeMoves.push({ move: m, value: pieceVals[sq.type] });
+            }
+          }
+        }
+      }
+
+      if (escapeMoves.length > 0) {
+        escapeMoves.sort((a, b) => b.value - a.value);
+        const best = escapeMoves[0].move;
+        game.move(best);
+        previousMoves.push(best.from + '-' + best.to);
+        board.position(game.fen());
+        updateStatus(); return;
+      }
+
+      let best = null, bestScore = -Infinity;
+      for (const m of moves) {
+        game.move(m);
+        const score = evalScore(game, m);
+        game.undo();
+        if (score > bestScore) {
+          bestScore = score;
+          best = m;
+        }
+      }
+
+      if (best) {
+        game.move(best);
+        previousMoves.push(best.from + '-' + best.to);
+        board.position(game.fen());
+        updateStatus();
+      }
+    }
+
+    function evalScore(g, m) {
+      let score = g.board().flat().reduce((s, sq) => {
+        if (!sq) return s;
+        return s + (sq.color === 'w' ? 1 : -1) * pieceVals[sq.type];
+      }, 0);
+      if (m.san.includes('+')) score += 0.2;
+      const moveKey = m.from + '-' + m.to;
+      const rep = previousMoves.filter(k => k === moveKey).length;
+      score -= rep * 0.5;
+      return score;
+    }
+
+    function undo() {
+      game.undo(); game.undo();
+      board.position(game.fen());
+      updateStatus();
+    }
+
+    function reset() {
+      game.reset(); previousMoves.length = 0;
+      board.start(); updateStatus();
+    }
+
+    updateStatus();
+  </script>
+</body>
+</html>
