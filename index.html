@@ -12,55 +12,75 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       line-height: 1.7;
       margin: 0 auto;
       padding: 20px;
       max-width: 850px;
-      background: #fff;
-      color: #111;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #f5f5f5;
       text-align: justify;
     }
 
     h1, h2 {
-      color: #333366;
+      color: #ffcc00;
+      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
     }
 
     #board {
       width: 400px;
       margin: 20px auto;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
     }
 
     #status {
       font-weight: bold;
       text-align: center;
       margin-top: 10px;
+      color: #80ffea;
     }
 
     #moves {
       max-height: 100px;
       overflow-y: auto;
-      border: 1px solid #ccc;
+      border: 1px solid #555;
       padding: 5px;
+      background: #222;
+      color: #ccc;
     }
 
     button {
       margin: 5px;
-      padding: 5px 10px;
+      padding: 5px 12px;
       cursor: pointer;
       border-radius: 4px;
+      background: #333366;
+      color: #fff;
+      border: none;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #555599;
     }
 
     .centered-img {
       display: block;
       margin: 20px auto;
-      width: 100%;
+      border: none;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
       max-width: 100%;
       height: auto;
     }
 
     pre code {
       font-size: 16px;
+      background: #111;
+      color: #00ffcc;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 0 8px rgba(0, 255, 204, 0.2);
     }
 
     @media (max-width: 768px) {
@@ -82,8 +102,7 @@
       }
 
       img, .centered-img {
-        width: 200% !important;
-        max-width: 200% !important;
+        max-width: 100%;
         height: auto;
       }
 
@@ -94,6 +113,7 @@
     }
   </style>
 </head>
+
 <body>
 
 <h1>Why Can't We Outsmart a Chess Bot?</h1>
@@ -141,7 +161,7 @@ def minimax(board, depth, is_maximizing):
 <p>Calculating every possible future is extremely expensive. To solve this, bots use <strong>alpha-beta pruning</strong> — a way to discard suboptimal moves early.</p>
 <p>If a move branch already looks worse than one you've seen before, there's no need to continue down that path. This clever cutoff reduces the number of positions the AI has to check, allowing it to look deeper without sacrificing time.</p>
 <p>The diagram below shows how a chess AI evaluates several possible continuations using a tree of moves and associated scores. Good lines are retained, bad ones are pruned.</p>
-<img src="images/Algo.png" alt="Minimax Tree Diagram" class="centered-img" width="80%" />
+<img src="images/Algo.png" alt="Minimax Tree Diagram" class="centered-img" width="100%" />
 
 <div style="margin-top: 1.5em; font-size: 16px; line-height: 1.6;">
   <p>
@@ -242,163 +262,198 @@ def minimax(board, depth, is_maximizing):
 </body>
 </html>
 
-  <script>
-    const game = new Chess();
-    const board = Chessboard('board', {
-      draggable: true,
-      position: 'start',
-      pieceTheme: 'images/{piece}.png',
-      onDrop: onDrop
-    });
+ <script>
+  const game = new Chess();
+  const board = Chessboard('board', {
+    draggable: true,
+    position: 'start',
+    pieceTheme: 'images/{piece}.png',
+    onDrop: onDrop
+  });
 
-    const pieceVals = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-    const previousMoves = [];
+  const pieceVals = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+  const previousMoves = [];
 
-    function updateStatus() {
-      if (game.in_checkmate()) $('#status').text(game.turn() === 'w' ? 'Black wins!' : 'White wins!');
-      else if (game.in_draw()) $('#status').text('Draw!');
-      else if (game.in_check()) $('#status').text('Check!');
-      else $('#status').text(game.turn() === 'w' ? 'Your move!' : 'Bot thinking...');
-      $('#moves').text(game.history().join(' '));
+  const openingBook = {
+    e4: ['e5', 'c5'],
+    d4: ['d5', 'Nf6'],
+    Nf3: ['d5'],
+    c4: ['e5'],
+    g3: ['d5']
+  };
+
+  function updateStatus() {
+    if (game.in_checkmate()) $('#status').text(game.turn() === 'w' ? 'Black wins!' : 'White wins!');
+    else if (game.in_draw()) $('#status').text('Draw!');
+    else if (game.in_check()) $('#status').text('Check!');
+    else $('#status').text(game.turn() === 'w' ? 'Your move!' : 'Bot thinking...');
+    $('#moves').text(game.history().join(' '));
+  }
+
+  function attackersToSquare(g, square, byColor) {
+    return g.moves({ verbose: true }).filter(m => m.to === square && g.get(m.from)?.color === byColor);
+  }
+
+  function onDrop(src, tgt) {
+    const move = game.move({ from: src, to: tgt, promotion: 'q' });
+    if (!move) return 'snapback';
+    board.position(game.fen());
+    updateStatus();
+    setTimeout(botMove, 100);
+  }
+
+  function botMove() {
+    if (game.game_over()) return;
+
+    // 1. Opening book response
+    if (game.history().length <= 4) {
+      const lastMove = game.history().slice(-1)[0];
+      const replies = openingBook[lastMove];
+      if (replies && replies.length > 0) {
+        const move = game.move(replies[0]);
+        if (move) {
+          board.position(game.fen());
+          previousMoves.push(move.from + '-' + move.to);
+          updateStatus();
+          return;
+        }
+      }
     }
 
-    function attackersToSquare(g, square, byColor) {
-      return g.moves({ verbose: true }).filter(m => m.to === square && g.get(m.from)?.color === byColor);
+    const moves = game.moves({ verbose: true });
+    const myColor = game.turn();
+    const oppColor = myColor === 'w' ? 'b' : 'w';
+
+    // 2. Mate in one
+    for (const m of moves) {
+      game.move(m);
+      if (game.in_checkmate()) {
+        game.undo(); game.move(m);
+        board.position(game.fen());
+        previousMoves.push(m.from + '-' + m.to);
+        updateStatus();
+        return;
+      }
+      game.undo();
     }
 
-    function onDrop(src, tgt) {
-      const move = game.move({ from: src, to: tgt, promotion: 'q' });
-      if (!move) return 'snapback';
-      board.position(game.fen());
-      updateStatus();
-      setTimeout(botMove, 100);
-    }
-
-    function botMove() {
-      if (game.game_over()) return;
-      const moves = game.moves({ verbose: true });
-      const myColor = game.turn();
-      const oppColor = myColor === 'w' ? 'b' : 'w';
-
+    // 3. Escape check
+    if (game.in_check()) {
       for (const m of moves) {
         game.move(m);
-        if (game.in_checkmate()) {
+        if (!game.in_check()) {
           game.undo(); game.move(m);
           board.position(game.fen());
           previousMoves.push(m.from + '-' + m.to);
-          updateStatus(); return;
+          updateStatus();
+          return;
         }
         game.undo();
-      }
-
-      if (game.in_check()) {
-        for (const m of moves) {
-          game.move(m);
-          if (!game.in_check()) {
-            game.undo(); game.move(m);
-            board.position(game.fen());
-            previousMoves.push(m.from + '-' + m.to);
-            updateStatus(); return;
-          }
-          game.undo();
-        }
-      }
-
-      const safeCaptures = [];
-      for (const m of moves) {
-        if (!m.captured) continue;
-        const fromPiece = game.get(m.from);
-        const toVal = pieceVals[m.captured];
-        const fromVal = pieceVals[fromPiece.type];
-        game.move(m);
-        const attackers = attackersToSquare(game, m.to, oppColor);
-        game.undo();
-        if (attackers.length === 0 || toVal - fromVal >= 0) {
-          safeCaptures.push({ move: m, gain: toVal - fromVal });
-        }
-      }
-
-      if (safeCaptures.length > 0) {
-        safeCaptures.sort((a, b) => b.gain - a.gain);
-        const best = safeCaptures[0].move;
-        game.move(best);
-        previousMoves.push(best.from + '-' + best.to);
-        board.position(game.fen());
-        updateStatus(); return;
-      }
-
-      const escapeMoves = [];
-      const boardMap = game.board();
-      for (let r = 0; r < 8; r++) {
-        for (let f = 0; f < 8; f++) {
-          const sq = boardMap[r][f];
-          if (!sq || sq.color !== myColor) continue;
-          const square = 'abcdefgh'[f] + (8 - r);
-          const isAttacked = attackersToSquare(game, square, oppColor).length > 0;
-          if (isAttacked) {
-            const legal = moves.filter(m => m.from === square);
-            for (const m of legal) {
-              game.move(m);
-              const safe = attackersToSquare(game, m.to, oppColor).length === 0;
-              game.undo();
-              if (safe) escapeMoves.push({ move: m, value: pieceVals[sq.type] });
-            }
-          }
-        }
-      }
-
-      if (escapeMoves.length > 0) {
-        escapeMoves.sort((a, b) => b.value - a.value);
-        const best = escapeMoves[0].move;
-        game.move(best);
-        previousMoves.push(best.from + '-' + best.to);
-        board.position(game.fen());
-        updateStatus(); return;
-      }
-
-      let best = null, bestScore = -Infinity;
-      for (const m of moves) {
-        game.move(m);
-        const score = evalScore(game, m);
-        game.undo();
-        if (score > bestScore) {
-          bestScore = score;
-          best = m;
-        }
-      }
-
-      if (best) {
-        game.move(best);
-        previousMoves.push(best.from + '-' + best.to);
-        board.position(game.fen());
-        updateStatus();
       }
     }
 
-    function evalScore(g, m) {
-      let score = g.board().flat().reduce((s, sq) => {
-        if (!sq) return s;
-        return s + (sq.color === 'w' ? 1 : -1) * pieceVals[sq.type];
-      }, 0);
-      if (m.san.includes('+')) score += 0.2;
-      const moveKey = m.from + '-' + m.to;
-      const rep = previousMoves.filter(k => k === moveKey).length;
-      score -= rep * 0.5;
-      return score;
+    // 4. Safe or equal captures
+    const safeCaptures = [];
+    for (const m of moves) {
+      if (!m.captured) continue;
+      const fromPiece = game.get(m.from);
+      const toVal = pieceVals[m.captured];
+      const fromVal = pieceVals[fromPiece.type];
+      game.move(m);
+      const attackers = attackersToSquare(game, m.to, oppColor);
+      game.undo();
+      if (attackers.length === 0 || toVal - fromVal >= 0) {
+        safeCaptures.push({ move: m, gain: toVal - fromVal });
+      }
     }
 
-    function undo() {
-      game.undo(); game.undo();
+    if (safeCaptures.length > 0) {
+      safeCaptures.sort((a, b) => b.gain - a.gain);
+      const best = safeCaptures[0].move;
+      game.move(best);
+      previousMoves.push(best.from + '-' + best.to);
+      board.position(game.fen());
+      updateStatus();
+      return;
+    }
+
+    // 5. Save endangered pieces
+    const escapeMoves = [];
+    const boardMap = game.board();
+    for (let r = 0; r < 8; r++) {
+      for (let f = 0; f < 8; f++) {
+        const sq = boardMap[r][f];
+        if (!sq || sq.color !== myColor) continue;
+        const square = 'abcdefgh'[f] + (8 - r);
+        const isAttacked = attackersToSquare(game, square, oppColor).length > 0;
+        if (isAttacked) {
+          const legal = moves.filter(m => m.from === square);
+          for (const m of legal) {
+            game.move(m);
+            const safe = attackersToSquare(game, m.to, oppColor).length === 0;
+            game.undo();
+            if (safe) escapeMoves.push({ move: m, value: pieceVals[sq.type] });
+          }
+        }
+      }
+    }
+
+    if (escapeMoves.length > 0) {
+      escapeMoves.sort((a, b) => b.value - a.value);
+      const best = escapeMoves[0].move;
+      game.move(best);
+      previousMoves.push(best.from + '-' + best.to);
+      board.position(game.fen());
+      updateStatus();
+      return;
+    }
+
+    // 6. Evaluation fallback
+    let best = null, bestScore = -Infinity;
+    for (const m of moves) {
+      game.move(m);
+      const score = evalScore(game, m);
+      game.undo();
+      if (score > bestScore) {
+        bestScore = score;
+        best = m;
+      }
+    }
+
+    if (best) {
+      game.move(best);
+      previousMoves.push(best.from + '-' + best.to);
       board.position(game.fen());
       updateStatus();
     }
+  }
 
-    function reset() {
-      game.reset(); previousMoves.length = 0;
-      board.start(); updateStatus();
-    }
+  function evalScore(g, m) {
+    let score = g.board().flat().reduce((s, sq) => {
+      if (!sq) return s;
+      return s + (sq.color === 'w' ? 1 : -1) * pieceVals[sq.type];
+    }, 0);
+    if (m.san.includes('+')) score += 0.2;
+    const moveKey = m.from + '-' + m.to;
+    const rep = previousMoves.filter(k => k === moveKey).length;
+    score -= rep * 0.5;
+    return score;
+  }
 
+  function undo() {
+    game.undo(); game.undo();
+    board.position(game.fen());
     updateStatus();
-  </script>
+  }
+
+  function reset() {
+    game.reset(); previousMoves.length = 0;
+    board.start(); updateStatus();
+  }
+
+  updateStatus();
+</script>
+
+  
 </body>
 </html>
